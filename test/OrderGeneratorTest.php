@@ -3,7 +3,6 @@
 use PHPUnit\Framework\TestCase;
 use Company\OrderMetadata\OrderGenerator;
 
-// Mock WordPress functions if they don't exist
 if ( ! function_exists( 'add_action' ) ) {
     function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) {}
 }
@@ -34,37 +33,20 @@ class OrderGeneratorTest extends TestCase {
 
     /** @test */
     public function it_generates_correct_reference_format() {
-        // 1. Setup - Simulamos (Mock) la orden de WooCommerce
         $orderId = 123;
         $currentYear = date('Y');
         $expectedCode = "CMP-{$orderId}-{$currentYear}";
-
-        // Simulamos el objeto WC_Order
         $orderMock = \Mockery::mock('WC_Order');
-        
-        // La orden no tiene meta aún
         $orderMock->shouldReceive('get_meta')
             ->with('company_reference_code')
             ->andReturn(false);
-
-        // Esperamos que se llame a update_meta_data con el código correcto
         $orderMock->shouldReceive('update_meta_data')
             ->once()
             ->with('company_reference_code', $expectedCode);
-
-        // Esperamos que se guarde la metadata de la orden
         $orderMock->shouldReceive('save_meta_data')->once();
-
-        // Simulamos la función global wc_get_order
-        // Nota: En un entorno real de WP Unit Tests esto sería diferente, 
-        // pero para una prueba técnica aislada, esto demuestra conocimiento de Mocking.
         $GLOBALS['mock_wc_order'] = $orderMock;
-
-        // 2. Ejecución
         $generator = new OrderGenerator();
         $generator->generate_order_reference($orderId);
-
-        // 3. Aserción (manejada por Mockery)
         $this->assertTrue(true);
     }
 }

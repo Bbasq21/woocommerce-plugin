@@ -1,38 +1,38 @@
 # Company Order Metadata Plugin
 
-Hola. Esta es mi solución para la prueba técnica de WordPress/WooCommerce.
+Here is my submission for the WordPress/WooCommerce technical test.
 
-El objetivo del plugin es generar un código de referencia interno (`CMP-{ID}-{YYYY}`) automáticamente para cada nuevo pedido y mostrarlo en el admin de forma segura.
+The goal of this plugin is to automatically generate a unique internal reference code (`CMP-{ID}-{YYYY}`) for every new order and display it securely in the admin area.
 
-## 🏗 Arquitectura y Estructura
+## 🏗 Architecture & Design Decisions
 
-He decidido separar la lógica en clases pequeñas y específicas siguiendo el principio de responsabilidad única (SRP), en lugar de meter todo en un solo archivo gigante:
+I opted for a modular approach following the **Single Responsibility Principle (SRP)**, rather than dumping everything into a single file:
 
-* **`OrderGenerator`**: Se encarga puramente de la lógica de negocio (generar el código, validar duplicados y guardar).
-* **`AdminDisplay`**: Se encarga solo de la interfaz visual (pintar la Meta Box en el admin).
-* **Namespaces**: Usé `Company\OrderMetadata` para evitar cualquier conflicto con otros plugins, incluso si tienen nombres de clases similares.
+* **`OrderGenerator`**: Handles strictly business logic (generating the code, validating uniqueness, and saving).
+* **`AdminDisplay`**: Handles strictly the UI (rendering the Meta Box).
+* **Namespaces**: I used `Company\OrderMetadata` to prevent collisions with other plugins or themes.
 
-## ⚓ Selección de Hooks
+## ⚓ Hook Selection Strategy (The "Why")
 
-Esta fue la parte crítica para asegurar la estabilidad:
+Choosing the right hooks was critical to ensure stability and compatibility:
 
-1.  **`woocommerce_new_order`**:
-    * *¿Por qué este?* Inicialmente consideré `save_post` o hooks de checkout, pero esos pueden dispararse múltiples veces o antes de que el ID del pedido esté listo. `woocommerce_new_order` es el estándar moderno; se dispara una sola vez justo después de que la orden se crea, garantizando que ya tengo un `ORDER_ID` válido para cumplir con el formato requerido.
+1.  **`woocommerce_new_order`** (Business Logic):
+    * *Why?* I initially considered checkout hooks or `save_post`, but those can be unreliable (firing multiple times) or risky (causing transaction failures during checkout). `woocommerce_new_order` is the modern standard; it fires once, immediately after the order is created, ensuring a valid `ORDER_ID` is available for the required format.
 
-2.  **`add_meta_boxes`**:
-    * *¿Por qué este?* Para la UI, preferí usar una Meta Box nativa de WordPress en la barra lateral (`side`). Es menos intrusiva que inyectar HTML arbitrario en medio de los detalles del pedido y se siente más integrada en la interfaz de WooCommerce.
+2.  **`add_meta_boxes`** (UI):
+    * *Why?* For the Admin UI, I chose a native WordPress Meta Box in the sidebar (`side`). It feels more integrated and professional than injecting arbitrary HTML into the order details hooks, and it keeps the main data view clean.
 
-## 🚀 Rendimiento y Alto Volumen
+## 🚀 Performance & Scalability (High Volume)
 
-Pensando en tiendas con miles de transacciones, optimicé el código así:
+Designing for stores with high transaction volumes:
 
-* **Compatibilidad HPOS (High-Performance Order Storage):** No utilicé funciones directas de WordPress como `get_post_meta` o `update_post_meta`. En su lugar, usé los métodos CRUD de WooCommerce (`$order->get_meta()`, `$order->save_meta_data()`). Esto asegura que el plugin seguirá funcionando si la tienda migra sus tablas de pedidos a la nueva estructura optimizada de WooCommerce.
-* **Lectura antes de Escritura:** El código siempre verifica si el meta ya existe antes de intentar generarlo. Esto previene escrituras innecesarias en la base de datos y evita condiciones de carrera (race conditions).
+* **HPOS Compatibility (High-Performance Order Storage):** I avoided direct DB calls like `get_post_meta`. Instead, I used WooCommerce CRUD methods (`$order->get_meta()`, `$order->save_meta_data()`). This ensures the plugin remains compatible even if the store migrates to the new high-performance custom tables.
+* **Idempotency:** The code explicitly checks if the metadata already exists before generating it. This prevents duplicate writes and protects against race conditions.
 
-## ✅ Testing
+## ✅ Testing Strategy
 
-### 1. Pruebas Unitarias
-El repositorio incluye tests con **PHPUnit**. He mockeado el objeto `WC_Order` para probar la lógica de generación sin necesitar una base de datos activa.
+### 1. Automated Unit Tests
+The repository includes tests using **PHPUnit**. I mocked the `WC_Order` object to verify the logic without needing a live database.
 ```bash
 composer install
 ./vendor/bin/phpunit tests/OrderGeneratorTest.php
